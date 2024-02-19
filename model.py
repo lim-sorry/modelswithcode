@@ -21,7 +21,6 @@ class Generator(nn.Module):
         self.input_channel  = input_channel
         self.height = height
         self.width = width
-        
         layers = OrderedDict()
 
         # Down-Sampling layers
@@ -51,14 +50,16 @@ class Generator(nn.Module):
 
         return self.model(x)
 
-    def _make_conv_block(self, in_channel:int, out_channel:int, kernel:int, stride:int, padding:int, mode:str, output_layer=False):
+    def _make_conv_block(self, in_channel:int, out_channel:int,
+                         kernel:int, stride:int, padding:int,
+                         mode:str, output=False) -> nn.Module:
         layer = []
         if mode.lower() == 'd':
             layer.append(nn.Conv2d(in_channel, out_channel, kernel, stride, padding))
-        elif mode.lower() == 'u':
+        if mode.lower() == 'u':
             layer.append(nn.ConvTranspose2d(in_channel, out_channel, kernel, stride, padding))
         
-        if not output_layer:
+        if not output:
             layer.append(nn.InstanceNorm2d(out_channel))
             layer.append(nn.ReLU())
         else:
@@ -67,8 +68,39 @@ class Generator(nn.Module):
         return nn.Sequential(*layer)
 
 
+class Discriminator(nn.Module):
+    def __init__(self, input_channel:int, height:int, width:int, n_domain:int) -> None:
+        super(type(self), self).__init__()
+        self.input_channel = input_channel
+        self.height = height
+        self.width = width
+        self.n_domain = n_domain
+        layers = OrderedDict()
 
-
-
+        channel = 64
+        layers['input'] = self._make_conv_block(self.input_channel, channel, 4, 2, 1)
         
+        for i in range(5):
+            layers[f'hidden_{i}'] = self._make_conv_block(channel, channel*2, 4, 2, 1)
+            channel *= 2
+        
+        self.model = nn.Sequential(layers)
+        
+        self.src = nn.Conv2d(channel, 1, (self.height, self.width), 1, 0)
+        self.cls = nn.Conv2d(channel, self.n_domain, (self.height, self.width), 1, 0)
     
+
+    def forward(self, x):
+        x = self.model(x)
+        return self.src(x), self.cls(x)
+    
+    def _make_conv_block(self, in_channel, out_channel, kernel, stride, padding, output=False):
+        self.height //= 2
+        self.width //= 2
+
+        layer = []
+        layer.append(nn.Conv2d(in_channel, out_channel, kernel, stride, padding))        
+        layer.append(nn.LeakyReLU(0.01))
+        
+        return nn.Sequential(*layer)
+
