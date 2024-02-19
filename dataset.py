@@ -8,19 +8,16 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision.transforms import ToTensor, Resize
 import random
 
-
-
 class CustomTransform(nn.Module):
     def __init__(self, height:int, width:int) -> None:
         super(type(self), self).__init__()
         self.height = height
         self.width = width
-
+        self.to_tensor = ToTensor()
         self.resize = Resize((self.height, self.width), antialias=True)        
         
     def forward(self, x) -> torch.Tensor:
-        x = torch.tensor(x)
-        x = x.permute(2,0,1)
+        x = self.to_tensor(x)
         x = self.resize(x)
         x = ((x / 255.0) / 0.5) - 0.5
 
@@ -40,7 +37,7 @@ class CustomDataset(Dataset):
         self.disc = {'train':0, 'valid':1, 'test':2}[disc]
         self.transform = transform
         
-        self.df_celeba = self.get_images_from_celeba()[:500]
+        self.df_celeba = self.get_images_from_celeba()[:10000]
         self.df_rafd = self.get_images_from_celeba()
         self.adjust_dataset_len()
     
@@ -50,15 +47,10 @@ class CustomDataset(Dataset):
         label_celeba = torch.tensor(self.df_celeba.iloc[index, 1:].to_numpy(dtype=np.float32))
         celeba = {'image':image_celeba, 'label':label_celeba}
 
-        image_rafd = cv2.imread(os.path.join(self.root_celeba, 'Img/img_align_celeba', self.df_celeba.iloc[index, 0]))
-        image_rafd = self.transform(image_celeba)
-        label_rafd = torch.tensor(self.df_celeba.iloc[index, 1:].to_numpy(dtype=np.float32))
-        rafd = {'image':image_rafd, 'label':label_rafd}
-
-        return celeba, rafd
+        return celeba, celeba
     
     def __len__(self) -> int:
-        return 0
+        return len(self.df_celeba)
     
     def get_images_from_celeba(self) -> pd.DataFrame:
         disc = pd.read_csv(os.path.join(self.root_celeba,'Eval/list_eval_partition.txt'), sep=' ', names=['image', 'disc'])
