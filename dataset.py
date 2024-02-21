@@ -87,7 +87,7 @@ class CustomDataset(Dataset):
     
 
     def _adjust_dataset_len(self) -> None:
-        if len(self.df_a) < len(self.df_b):
+        if len(self.df_a) <= len(self.df_b):
             indices = np.arange(len(self.df_b))
             random.shuffle(indices)
             self.df_b = self.df_b.iloc[indices[:len(self.df_a)]].reset_index(drop=True)

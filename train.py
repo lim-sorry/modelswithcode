@@ -1,16 +1,18 @@
+import os
 import torch
-import utils
+import torch.nn as nn
+import tqdm
 from torch.utils.data import DataLoader
 from dataset import CustomDataset, CustomTransform
 from model import Discriminator, Generator
-from criterion import *
-import tqdm
-from torchvision.utils import save_image
+from criterion import calc_adversal_loss, calc_domain_cls_loss, calc_reconstruction_loss
+from utils import parse_opt, save_model, save_image_grid
 
 class Train:
     def __init__(self, opt) -> None:
         self.opt = opt
         self.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+        os.makedirs('img', exist_ok=True)
 
         self.len_a = len(opt.label_a)
         self.n_domain = self.len_a + len(opt.label_b)
@@ -20,31 +22,53 @@ class Train:
         self.dataset.get_images(opt.label_a, opt.label_b, opt.name_a, opt.name_b)
         self.dataloader = DataLoader(self.dataset, opt.batch_size, shuffle=True, drop_last=True, num_workers=4)
 
-        self.gen = Generator(opt.channel+self.n_domain).to(self.device)
-        self.disc = Discriminator(opt.channel, opt.height, opt.width, self.n_domain).to(self.device)
-        # self.gen = torch.load('gen.pt').to(self.device)
-        # self.disc = torch.load('disc.pt').to(self.device)
+        self.t_dataset = CustomDataset(opt.root_celeba, opt.root_rafd, 'test', self.transform)
+        self.t_dataset.get_images(opt.label_a, opt.label_b, opt.name_a, opt.name_b)
 
-        self.optimizer_gen = torch.optim.Adam(self.gen.parameters(), 0.0001)
-        self.optimizer_disc = torch.optim.Adam(self.disc.parameters(), 0.0001)
+        if os.path.exists('gen.pt'):
+            self.gen = torch.load('gen.pt').to(self.device)
+            print('gen loaded')
+        else:
+            self.gen = Generator(opt.channel+self.n_domain).to(self.device)
+            print('gen created')
+        if os.path.exists('disc.pt'):
+            self.disc = torch.load('disc.pt').to(self.device)
+            print('disc loaded')
+        else:
+            self.disc = Discriminator(opt.channel, opt.height, opt.width, self.n_domain).to(self.device)
+            print('disc created')
+        
+        self.optimizer_gen = torch.optim.Adam(self.gen.parameters(), opt.lr, weight_decay=opt.weight_decay)
+        self.optimizer_disc = torch.optim.Adam(self.disc.parameters(), opt.lr, weight_decay=opt.weight_decay)
     
-        # self.tq = tqdm.tqdm(range(opt.epoch))
-
+        self.tq = tqdm.tqdm(self.dataloader, ncols=100)
+        self.it = opt.iter
+        
+        
+        
     def train(self):
-        history = {'disc_loss':[], 'gen_loss':[]}
-        #for epoch in self.tq:
-        for epoch in range(self.opt.epoch):
-            total_loss = [0, 0, 0, 0, 0]
-            for dict_a, dict_b in self.dataloader:
-                real_a = dict_a['image'].to(self.device)
-                real_b = dict_b['image'].to(self.device)
-                real_label_a = dict_a['label'].to(self.device)
-                real_label_b = dict_b['label'].to(self.device)
+        opt = self.opt
+        device = self.device
+
+        real_sample = torch.stack([self.t_dataset.__getitem__(i)[0]['image'] for i in range(64)], dim=0).to(device)
+        real_label_sample = torch.stack([self.t_dataset.__getitem__(i)[1]['label'] for i in range(64)], dim=0).to(device)
+        target_label_sample_a = nn.functional.one_hot(torch.randint(0, 3, real_label_sample.shape[:1]), 3).to(device)
+        target_label_sample_b = - real_label_sample
+        target_domain_sample = torch.cat([target_label_sample_a, target_label_sample_b], dim=1)
+        save_image_grid(real_sample, f'real.png', 8)
+        
+        total_loss = [0, 0, 0, 0, 0]
+        for _ in range(opt.epoch):
+            for dict_a, dict_b in self.tq:
+                real_a = dict_a['image'].to(device)
+                real_b = dict_b['image'].to(device)
+                real_label_a = dict_a['label'].to(device)
+                real_label_b = dict_b['label'].to(device)
 
                 # 1.training discriminator
                 # target label
-                target_label_a = torch.randint_like(real_label_a, 2)
-                target_label_b = torch.randint_like(real_label_b, 2)
+                target_label_a = nn.functional.one_hot(torch.randint(0, 3, real_label_a.shape[:1]), 3).to(device)
+                target_label_b = - real_label_b
                 mask_a = torch.zeros_like(real_label_a)
                 mask_b = torch.zeros_like(real_label_b)
                 # domain label
@@ -110,24 +134,24 @@ class Train:
                 rec_loss = rec_loss_a + rec_loss_b
                 total_loss[4] += rec_loss.item()
                 # optimizer_gen step
-                gen_loss = adv_loss + self.opt.lambda_cls * cls_loss + self.opt.lambda_rec * rec_loss
+                gen_loss = adv_loss + self.opt.lambda_cls * cls_loss + opt.lambda_rec * rec_loss
                 self.optimizer_gen.zero_grad()
                 gen_loss.backward()
                 self.optimizer_gen.step()
 
-            history['disc_loss'].append(total_loss[0])
-            history['gen_loss'].append(total_loss[1])
-            print(total_loss)
-            # print(f'epoch {epoch} :: disc_loss : {total_loss[0]:.3f}, gen_loss : {total_loss[1]:.3f}')
-            save_image(real_a[0], '_real.png')
-            save_image(fake_a[0], '_fake.png')
-            save_image(rec_a[0], '_rec.png')
-
-            torch.save(self.gen, 'gen.pt')
-            torch.save(self.disc, 'disc.pt')
+                if self.it % 100 == 0:
+                    print()
+                    print(self.it, total_loss)
+                    fake_sample = self.gen(real_sample, target_domain_sample)
+                    save_image_grid(fake_sample, f'fake.png', 8)
+                    save_image_grid(fake_sample, f'img/{int(self.it):08d}.png', 8)
+                    save_model(self.gen, self.disc)
+                    total_loss = [0, 0, 0, 0, 0]
+                self.it += 1
+                
 
 def main():
-    opt = utils.parse_opt()
+    opt = parse_opt()
 
     train = Train(opt)
     train.train()
