@@ -28,14 +28,15 @@ def parse_opt() -> argparse.Namespace:
     parser.add_argument('--channel', type=int, default=3)
 
     parser.add_argument('--batch_size', type=int, default=32)
-    parser.add_argument('--epoch', type=int, default=1024)
+    parser.add_argument('--epoch', type=int, default=100)
     
     parser.add_argument('--lr', type=float, default=1e-4)
-    parser.add_argument('--weight_decay', type=float, default=0.001)
+    parser.add_argument('--weight_decay', type=float, default=0.00001)
 
     parser.add_argument('--iter', type=int, default=0)
 
     return parser.parse_args()
+
 
 def save_model(gen:torch.nn.Module, disc:torch.nn.Module):
     torch.save(gen, 'gen.pt')

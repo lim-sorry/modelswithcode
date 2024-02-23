@@ -68,6 +68,10 @@ class CustomDataset(Dataset):
         self.name_b = name_b
         self.df_a = self._get_images_from_rafd(label_a) if name_a=='rafd' else self._get_images_from_celeba(label_a)
         self.df_b = self._get_images_from_rafd(label_b) if name_b=='rafd' else self._get_images_from_celeba(label_b)
+        # split dataset if train with one data.
+        if self.name_a == self.name_b:
+            self.df_a = self.df_a[:len(self.df_a)//2]
+            self.df_b = self.df_b[len(self.df_a):]
         self._adjust_dataset_len()
     
 
