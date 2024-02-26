@@ -8,5 +8,5 @@
 
 ### 2. Objective
 - Understand architecture of **Vision Transformer**.
-- Understand how **Multi-head Attention** works and visulize it.
+- Understand how **Multi-head Self Attention** works and visulize it.
 - Classify face images by gender.
