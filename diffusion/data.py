@@ -1,11 +1,8 @@
 import os
 import random
-from typing import Iterable, List
 import cv2
 import pandas as pd
-import torch
 from torch.utils.data import Dataset, DataLoader, Sampler
-from torch.utils.data.dataloader import _collate_fn_t, _worker_init_fn_t
 import glob
 from torchvision.transforms import *
 
