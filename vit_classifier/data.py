@@ -1,6 +1,7 @@
 import os
 import cv2
 import pandas as pd
+import torch
 from torch.utils.data import Dataset, DataLoader
 import glob
 from torchvision.transforms import *
@@ -48,7 +49,7 @@ class CelebaDataset(Dataset):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = self.transformer.transform(img, True)
 
-        label = 1 if self.df_label.iloc[index]['Male'] == 1 else 0
+        label = torch.ones(1) if self.df_label.iloc[index]['Male'] == 1 else torch.zeros(1)
 
         return img, label
     
