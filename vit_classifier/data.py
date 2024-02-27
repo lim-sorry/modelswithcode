@@ -62,5 +62,5 @@ class CelebaDataset(Dataset):
 
 
 class CelebaDataLoader(DataLoader):
-    def __init__(self, path_img:str, path_label:str, transformer:Transformer, train:bool, batch_size:int, shuffle:bool=True, drop_last:bool=True):
-        super(type(self), self).__init__(dataset=CelebaDataset(path_img, path_label, transformer, train), batch_size=batch_size, shuffle=shuffle, drop_last=drop_last)
+    def __init__(self, path_img:str, path_label:str, transformer:Transformer, train:bool, batch_size:int):
+        super(type(self), self).__init__(dataset=CelebaDataset(path_img, path_label, transformer, train), batch_size=batch_size, shuffle=train, drop_last=train)

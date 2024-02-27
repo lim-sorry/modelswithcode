@@ -17,7 +17,7 @@ def args_parse() -> Namespace:
 
     parser.add_argument("--PATH_IMG", type=str, default="/root/CelebA/Img/img_align_celeba")
     parser.add_argument("--PATH_LABEL", type=str, default="/root/CelebA/Anno/list_attr_celeba.txt")
-    parser.add_argument("--TRAIN", type=bool, default=True)
+    parser.add_argument("--TRAIN", type=bool)
     
     parser.add_argument("--EPOCH", type=int, default=1)
     parser.add_argument("--BATCH_SIZE", type=int, default=32)
@@ -30,44 +30,47 @@ def args_parse() -> Namespace:
 
 class Trainer:
     def __init__(self, opt:Namespace) -> None:
-        opt = opt
-        device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+        self.opt = opt
+        self.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+        self.img_size = [self.opt.UP_SIZE]*2
         
-        transformer = Transformer(opt.UP_SIZE, opt.DOWN_SIZE)
-        dataloader = CelebaDataLoader(opt.PATH_IMG, opt.PATH_LABEL, transformer, opt.TRAIN, opt.BATCH_SIZE)
+        self.transformer = Transformer(opt.UP_SIZE, opt.DOWN_SIZE)
+        self.dataloader = CelebaDataLoader(opt.PATH_IMG, opt.PATH_LABEL, self.transformer, opt.TRAIN, opt.BATCH_SIZE)
 
-        model = SuperSampler(opt.IMG_CH, opt.UP_SIZE, opt.DOWN_SIZE, opt.N_PATCH).to(device)
-        optimizer = torch.optim.Adam(model.parameters(), opt.LR)
-        criterion = nn.MSELoss()
+        self.model = SuperSampler(opt.IMG_CH, opt.UP_SIZE, opt.DOWN_SIZE, opt.N_PATCH).to(self.device)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), opt.LR)
+        self.criterion = nn.MSELoss()
 
-        ep = 0
         if os.path.exists('supersampler.pt'):
             checkpoint = torch.load('supersampler.pt')
-            ep = checkpoint['ep']
-            model.load_state_dict(checkpoint['model'])
-            optimizer.load_state_dict(checkpoint['optimizer'])
+            self.ep = checkpoint['ep']
+            self.model.load_state_dict(checkpoint['model'])
+            self.optimizer.load_state_dict(checkpoint['optimizer'])
 
-        for ep in range(ep, opt.EPOCH):
+    def train(self):
+        self.model.train()
+        ep = self.ep
+        for ep in range(ep, self.opt.EPOCH):
             total_loss = 0.0
-            tq = tqdm.tqdm(dataloader, ncols=150)
+            tq = tqdm.tqdm(self.dataloader, ncols=150)
             for it, (img, img_trg) in enumerate(tq):
-                img = img.to(device)
-                img_trg = img_trg.to(device)
-                img_pred = model(img)
+                img = img.to(self.device)
+                img_trg = img_trg.to(self.device)
+                img_pred = self.model(img)
 
-                loss = criterion(img_trg, img_pred)
+                loss = self.criterion(img_trg, img_pred)
                 total_loss += loss.item()
                 tq.set_postfix({'loss':total_loss/(it+1)})
 
-                optimizer.zero_grad()
+                self.optimizer.zero_grad()
                 loss.backward()
-                optimizer.step()
+                self.optimizer.step()
             
-                if it%100 == 0 or it==len(dataloader)-1:
+                if it%100 == 0 or it==len(self.dataloader)-1:
                     imgs = []
                     for i in range(4):
-                        imgs.append(resize(img[i], (opt.UP_SIZE, opt.UP_SIZE), InterpolationMode.NEAREST))
-                        imgs.append(resize(img[i], (opt.UP_SIZE, opt.UP_SIZE), InterpolationMode.BICUBIC, antialias=True))
+                        imgs.append(resize(img[i], self.img_size, InterpolationMode.NEAREST))
+                        imgs.append(resize(img[i], self.img_size, InterpolationMode.BICUBIC, antialias=True))
                         imgs.append(img_pred[i])
                         imgs.append(img_trg[i])
                     imgs = make_grid(imgs, 4, 4)
@@ -75,16 +78,39 @@ class Trainer:
 
             checkpoint = {
                 'ep': ep+1,
-                'model': model.state_dict(),
-                'optimizer': optimizer.state_dict()
+                'model': self.model.state_dict(),
+                'optimizer': self.optimizer.state_dict()
             }
             torch.save(checkpoint, 'supersampler.pt')
 
-
+    def test(self):
+        self.model.eval()
+        total_loss = 0.0        
+        tq = tqdm.tqdm(self.dataloader, ncols=150)
+        for img, img_trg in enumerate(tq):
+            img = img.to(self.device)
+            img_trg = img_trg.to(self.device)
+            img_pred = self.model(img)
+            loss = self.criterion(img_trg, img_pred)
+            total_loss += loss
+            tq.set_postfix({'loss':total_loss})
+        imgs = []
+        for i in range(4):
+            imgs.append(resize(img[i], self.img_size, InterpolationMode.NEAREST))
+            imgs.append(resize(img[i], self.img_size, InterpolationMode.BICUBIC, antialias=True))
+            imgs.append(img_pred[i])
+            imgs.append(img_trg[i])
+        imgs = make_grid(imgs, 4, 4)
+        save_image(imgs*0.5+0.5, f'img/test_result.png')
 
 def main():
     opt = args_parse()
-    train = Trainer(opt)
+
+    trainer = Trainer(opt)
+    if opt.TRAIN == True:
+        trainer.train()
+    else:
+        trainer.test()
 
 
 if __name__ == "__main__":
