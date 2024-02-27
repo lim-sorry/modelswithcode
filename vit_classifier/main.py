@@ -19,7 +19,7 @@ def args_parse() -> Namespace:
     parser.add_argument("--PATH_LABEL", type=str, default="/root/CelebA/Anno/list_attr_celeba.txt")
     parser.add_argument("--TRAIN", type=bool, default=True)
     
-    parser.add_argument("--EPOCH", type=int, default=128)
+    parser.add_argument("--EPOCH", type=int, default=1)
     parser.add_argument("--BATCH_SIZE", type=int, default=32)
     parser.add_argument("--LR", type=float, default=0.0001)
 
@@ -62,17 +62,6 @@ class Trainer:
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-                
-                # if it % 100 == 0:
-                #     imgs = []
-                #     for i in range(4):
-                #         imgs.append(resize(img[i], (opt.UP_SIZE, opt.UP_SIZE), InterpolationMode.NEAREST))
-                #         imgs.append(resize(img[i], (opt.UP_SIZE, opt.UP_SIZE), InterpolationMode.BICUBIC, antialias=True))
-                #         imgs.append(img_pred[i])
-                #         imgs.append(img_trg[i])
-                #     imgs = make_grid(imgs, 4, 4)
-                #     save_image(imgs*0.5+0.5, f'img/{ep}_{it:06d}.png')
-                #     save_image(imgs*0.5+0.5, f'sample.png')
             
             checkpoint = {
                 'ep': ep+1,

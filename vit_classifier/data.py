@@ -22,13 +22,10 @@ class Transformer:
     
     def transform(self, img, down:bool=False):
         img = self.transformer(img)
-        img = self.resize(img, down)
+        img = resize(img, self.down_size, antialias=True) if down else resize(img, self.up_size, antialias=True)
         # if aug:
         #     img = self.augment(img)
         return img
-
-    def resize(self, img, down:bool=False):
-        return resize(img, self.down_size, antialias=True) if down else resize(img, self.up_size, antialias=True)
 
 
 class CelebaDataset(Dataset):

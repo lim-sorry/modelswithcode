@@ -14,7 +14,7 @@
 Results after one epoch with 32 batch size which equals to 5,698 iters. MSE loss for upsampling with bicubic method is about 0.0075, as goal of this experiment.
 
 ### Result 01
-- 0.00974 loss / iter, 2.03 iter / sec
+- 0.01030 loss / iter, 2.04 iter / sec
 - Without positional Embedding and weight normalization.
 - Skip connect upsampled input image by nearest method.
 - Loss after about 6,500 iters is 0.00539, which is smaller than bicubic upsampling error.
