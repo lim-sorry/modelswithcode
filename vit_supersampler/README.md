@@ -23,3 +23,6 @@ Results after one epoch with 32 batch size which equals to 5,698 iters. MSE loss
 - 0.00804 loss / iter, 2.04 iter / sec
 - Without positional Embedding and weight normalization.
 - Skip connect upsampled input image by bicubic method.
+
+### Trial 03
+-  634/634 [02:00<00:00,  5.25it/s, loss=3.27]
