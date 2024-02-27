@@ -63,6 +63,16 @@ class Trainer:
                 loss.backward()
                 optimizer.step()
             
+                if it%100 == 0 or it==len(dataloader)-1:
+                    imgs = []
+                    for i in range(4):
+                        imgs.append(resize(img[i], (opt.UP_SIZE, opt.UP_SIZE), InterpolationMode.NEAREST))
+                        imgs.append(resize(img[i], (opt.UP_SIZE, opt.UP_SIZE), InterpolationMode.BICUBIC, antialias=True))
+                        imgs.append(img_pred[i])
+                        imgs.append(img_trg[i])
+                    imgs = make_grid(imgs, 4, 4)
+                    save_image(imgs*0.5+0.5, f'img/result.png')
+
             checkpoint = {
                 'ep': ep+1,
                 'model': model.state_dict(),
@@ -70,14 +80,6 @@ class Trainer:
             }
             torch.save(checkpoint, 'supersampler.pt')
 
-            imgs = []
-            for i in range(4):
-                imgs.append(resize(img[i], (opt.UP_SIZE, opt.UP_SIZE), InterpolationMode.NEAREST))
-                imgs.append(resize(img[i], (opt.UP_SIZE, opt.UP_SIZE), InterpolationMode.BICUBIC, antialias=True))
-                imgs.append(img_pred[i])
-                imgs.append(img_trg[i])
-            imgs = make_grid(imgs, 4, 4)
-            save_image(imgs*0.5+0.5, f'img/result.png')
 
 
 def main():

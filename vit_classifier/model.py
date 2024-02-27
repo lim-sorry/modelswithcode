@@ -42,7 +42,6 @@ class PosEmbedBlock(nn.Module):
         # print(self.p_t[:3][:6])
         
         self.block = nn.Sequential(
-            nn.LayerNorm(in_dim),
             nn.Linear(in_dim, in_dim),
             nn.Linear(in_dim, in_dim),
             nn.Dropout(0.5, True)
@@ -71,6 +70,8 @@ class SuperSampler(nn.Module):
             Rearrange('b c (h p0) (w p1) -> b (p0 p1) (c h w)', p0=n_patch, p1=n_patch),
             nn.LayerNorm(in_ch * patch_size**2),
             nn.Linear(in_ch * patch_size**2, latent_dim),
+            nn.Linear(latent_dim, latent_dim),
+            nn.LayerNorm(latent_dim),
         )
 
         self.embed = PosEmbedBlock(n_patch**2, latent_dim)
