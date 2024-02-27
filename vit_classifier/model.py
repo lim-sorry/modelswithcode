@@ -1,7 +1,7 @@
-from collections import OrderedDict
 import torch
 import torch.nn as nn
 from einops.layers.torch import Rearrange
+import torch.nn.functional as F
 
 class MSA(nn.Module):
     def __init__(self, in_dim, out_dim) -> None:
@@ -26,61 +26,90 @@ class MSA(nn.Module):
         return x
 
 
-class Classifier(nn.Module):
-    def __init__(self, in_ch:int, img_size:list[int], n_patch:int, n_msa:int) -> None:
+class SuperSampler(nn.Module):
+    def __init__(self, in_ch:int, up_size:int, down_size:int, n_patch:int) -> None:
         super(type(self), self).__init__()
-        latent_size = 64
-        embeded_size = 32
-        n_msa = 3
+        self.latent_size = up_size // 4
+        latent_dim = self.latent_size ** 2
+        attetion_dim = 32
+        n_msa = 16
 
-
-        assert img_size[0] % n_patch == 0 and img_size[1] % n_patch == 0
-        patch_h = img_size[0] // n_patch
-        patch_w = img_size[1] // n_patch
+        assert down_size % n_patch == 0
+        patch_size = down_size // n_patch
 
         self.input = nn.Sequential(
             Rearrange('b c (h p0) (w p1) -> b (p0 p1) (c h w)', p0=n_patch, p1=n_patch),
-            nn.LayerNorm(in_ch * patch_h * patch_w),
-            nn.Linear(in_ch * patch_h * patch_w, latent_size),
-            nn.LayerNorm(latent_size),
+            nn.LayerNorm(in_ch * patch_size**2),
+            nn.Linear(in_ch * patch_size**2, latent_dim),
+            nn.LayerNorm(latent_dim),
         )
 
         self.embed = nn.Sequential(
             
         )
-
         
-        self.msa = nn.ModuleList([MSA(latent_size, embeded_size) for _ in range(n_msa)])
+        self.msa = nn.ModuleList([MSA(latent_dim, attetion_dim) for _ in range(n_msa)])
 
         self.mhp = nn.Sequential(
-            nn.Linear(embeded_size * n_msa, latent_size),
-            nn.Linear(latent_size, latent_size),
+            nn.Linear(attetion_dim * n_msa, latent_dim),
+            nn.Linear(latent_dim, latent_dim),
             nn.Dropout(0.5)
         )
 
         self.mlp = nn.Sequential(
-            nn.LayerNorm(latent_size),
-            nn.Linear(latent_size, latent_size),
-            nn.Linear(latent_size, latent_size),
+            nn.LayerNorm(latent_dim),
+            nn.Linear(latent_dim, latent_dim),
+            nn.Linear(latent_dim, latent_dim),
             nn.GELU(),
             nn.Dropout(0.5),
-            nn.Linear(latent_size, latent_size),
-            nn.Linear(latent_size, latent_size),
-            nn.Dropout(0.5)
+            nn.Linear(latent_dim, latent_dim),
+            nn.Linear(latent_dim, latent_dim),
+            nn.Dropout(0.5),
         )
 
+        ch = n_patch**2
+        self.up_0 = nn.Sequential(
+            nn.ConvTranspose2d(ch + in_ch, ch//2, 4, 2, 1, 0),
+            nn.GroupNorm(4, ch//2),
+            nn.GELU(),
+            nn.Conv2d(ch//2, ch//2, 3, 1, 1),
+            nn.GroupNorm(4, ch//2),
+            nn.GELU(),
+        )
+        self.up_1 = nn.Sequential(
+            nn.ConvTranspose2d(ch//2 + in_ch, ch//4, 4, 2, 1, 0),
+            nn.GroupNorm(4, ch//4),
+            nn.GELU(),
+            nn.Conv2d(ch//4, ch//4, 3, 1, 1),
+            nn.GroupNorm(4, ch//4),
+            nn.GELU(),
+        )
         self.output = nn.Sequential(
-            nn.Flatten(1),
-            nn.Linear(n_patch**2 * latent_size, 1)
-        ) 
+            nn.Conv2d(ch//4 + in_ch, in_ch, 1, 1, 0),
+            nn.Tanh()
+        )
 
         
     def forward(self, x):
+        x_0 = x
+
         x = self.input(x)
-        x_skip = self.embed(x)
-        x = torch.cat([msa(x_skip) for msa in self.msa], dim=2)
-        x_skip = self.mhp(x) + x_skip
+        x_embed = self.embed(x)
+
+        x = torch.cat([msa(x_embed) for msa in self.msa], dim=2)
+        x_skip = self.mhp(x) + x_embed
         x = self.mlp(x_skip) + x_skip
+        x = x.view(x.size(0), x.size(1), self.latent_size, self.latent_size)
+
+        x = torch.cat([x_0, x], dim=1)
+        x = self.up_0(x)
+
+        x_0 = F.interpolate(x_0, scale_factor=2, mode='bicubic')
+        x = torch.cat([x_0, x], dim=1)
+        x = self.up_1(x)
+        
+        x_0 = F.interpolate(x_0, scale_factor=2, mode='bicubic')
+        x = torch.cat([x_0, x], dim=1)
         x = self.output(x)
 
         return x
