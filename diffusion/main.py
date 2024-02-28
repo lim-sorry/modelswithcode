@@ -21,7 +21,7 @@ def parse_arg() -> argparse.Namespace:
     parser.add_argument('--IMG_WIDTH', type=int, default=64)
     parser.add_argument('--IMG_CH', type=int, default=3)
 
-    parser.add_argument('--BATCH_SIZE', type=int, default=128)
+    parser.add_argument('--BATCH_SIZE', type=int, default=64)
     parser.add_argument('--EPOCH', type=int, default=1024)
     parser.add_argument('--LEARNING_RATE', type=float, default=1e-5)
     parser.add_argument('--WEIGHT_DECAY', type=float, default=1e-5)
@@ -35,7 +35,7 @@ def parse_arg() -> argparse.Namespace:
 
     parser.add_argument('--MODE', type=str, default='train')
 
-    return parser.parse_args()
+    return parser.parse_args('')
 
 
 class Diffusion:
@@ -63,18 +63,8 @@ class Diffusion:
         opt = self.opt
         device = self.device
 
-        if os.path.exists('images/sample.png'):
-            sample_img = cv2.imread('images/sample.png')
-            sample_img = cv2.cvtColor(sample_img, cv2.COLOR_BGR2RGB)
-            sample_img = self.transformer.transform(sample_img).to(device)
-            sample_img = sample_img.view((1, opt.IMG_CH, opt.IMG_HEIGHT, opt.IMG_WIDTH)).to(device)
-        else:
-            sample_img = torch.clamp(torch.randn(3,64,64), -1.0, 1.0)
-            save_image((sample_img+1)/2, 'images/sample.png')
-        
-        total_loss = 0
-        self.model.zero_grad()
         for epoch in range(self.epoch, opt.EPOCH+1):
+            self.model.train()
             tq = tqdm.tqdm(self.dataloader, ncols=150)
             for i, (img, label) in enumerate(tq):
                 img = img.to(device)
@@ -85,36 +75,34 @@ class Diffusion:
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
-                total_loss += loss.item()
-                tq.set_postfix_str(f'{epoch:3d}/{total_loss/(i+1):>7.4f}')
-
+                tq.set_postfix_str(f'{epoch:2d}/{loss.item():>7.4f}')
+            
+            self.model.eval()
             with torch.no_grad():
-                imgs = [(sample_img[0]+1)/2]
-                sample_noise_img = sample_img.repeat(4, 1, 1, 1)
+                sample_img = torch.randn(4,3,64,64).to(device)
+                imgs = [sample_img[0]]
                 for i in range(0, opt.MAX_STEP)[::-1]:
                     t = torch.full((1,), i, device=self.device).float()
-                    sample_noise_pred = self.model(sample_noise_img, t)  # Predicted noise
-                    sample_noise_img = self.ddim.denoise_image(sample_noise_img, sample_noise_pred, t)
+                    noise_pred = self.model(sample_img, t)  # Predicted noise
+                    sample_img = self.ddim.denoise_image(sample_img, noise_pred, t)
                     if i % 18 == 0:
-                        imgs.append((sample_noise_img[0]+1)/2)
-            save_image(make_grid(imgs, 4), f'images/train_img.png')
+                        imgs.append(sample_img[0])
+                imgs = torch.stack(imgs, dim=0)
+                save_image(make_grid((imgs+1)/2, 4), f'images/train_img.png')
             self.save_checkpoint(epoch, self.model, self.optimizer, opt.PATH_CHECKPOINT)
-            total_loss = 0.0
 
 
     def test(self):
         opt = self.opt
         device = self.device
         
-        sample_img = torch.clamp(torch.randn(3,64,64), -1.0, 1.0)
-        sample_img = sample_img.view((1, opt.IMG_CH, opt.IMG_HEIGHT, opt.IMG_WIDTH)).to(device)
-        sample_img = sample_img.repeat(64, 1, 1, 1)
+        sample_img = torch.randn((64, opt.IMG_CH, opt.IMG_HEIGHT, opt.IMG_WIDTH)).to(device)
         with torch.no_grad():
             for i in range(0, opt.MAX_STEP)[::-1]:
                 t = torch.full((1,), i, device=self.device).float()
                 noise_pred = self.model(sample_img, t)  # Predicted noise
                 sample_img = self.ddim.denoise_image(sample_img, noise_pred, t)
-        save_image(make_grid((sample_img+1)*0.5, 8), f'images/test_img.png')
+        save_image(make_grid((sample_img+1)/2, 8), f'images/test_img.png')
 
 
     def save_checkpoint(self, epoch:int, model, optimizer, filename:str):

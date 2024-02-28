@@ -108,7 +108,7 @@ class UNet(nn.Module):
         super().__init__()
         self.max_step = max_step
         img_chs = 3
-        down_chs = (64, 128, 256)
+        down_chs = (128, 256, 512)
         up_chs = down_chs[::-1]
         latent_image_size = 64 // 4
         t_dim = 8
@@ -164,10 +164,12 @@ class UNet(nn.Module):
         temb_1 = self.temb_1(t)
         temb_2 = self.temb_2(t)
 
-        up0 = self.up0(latent_vec)
-        up1 = self.up1(up0+temb_1, down2)
-        up2 = self.up2(up1+temb_2, down1)
-        return self.out(torch.cat((up2, down0), 1))
+        x = self.up0(latent_vec)
+        x = self.up1(x+temb_1, down2)
+        x = self.up2(x+temb_2, down1)
+        x = self.out(torch.cat((x, down0), 1))
+
+        return x
     
     def _initialize_weight(self):
         for m in self.modules():

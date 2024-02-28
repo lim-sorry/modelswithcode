@@ -20,7 +20,6 @@ class DDIM:
         
         noise = torch.randn_like(image)
         image = self.sqrt_a_bar[t, None, None, None] * image + self.sqrt_one_minus_a_bar[t, None, None, None] * noise
-        image = torch.clamp(image, -1.0, 1.0)
         return image, noise
     
 
