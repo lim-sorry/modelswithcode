@@ -15,7 +15,7 @@ def args_parse() -> Namespace:
     parser.add_argument("--DOWN_SIZE", type=int, default=48)
     parser.add_argument("--IMG_CH", type=int, default=3)
 
-    parser.add_argument("--TRAIN", type=bool, default=True)
+    parser.add_argument("--TRAIN", type=bool, default=False)
     parser.add_argument("--PATH_PT", type=str, default="supersampler.pt")
     parser.add_argument("--PATH_IMG", type=str, default="/root/CelebA/Img/img_align_celeba")
     parser.add_argument("--PATH_LABEL", type=str, default="/root/CelebA/Anno/list_attr_celeba.txt")
