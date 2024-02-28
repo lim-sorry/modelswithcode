@@ -44,4 +44,4 @@ Multi-head Self-Attention (MSA) layers use queries, keys, and values to determin
   ![heatmap_1](src/heatmap_1.png)
 
 ## 4. Conclusion
- While implementing a super-sampling model based on ViT could explore the patch-wise multi-head self-attention mechanism of Vision Transformer. I found that the Transformer block that computes the Attention score of the Input image was faster than the Transposed Convolution block within limited patch and head number. Moreover, it had the benefit of being able to access information from any part of the image, regardless of the distance, overcoming the locality issue.
+ While implementing a super-sampling model based on ViT could explore the patch-wise multi-head self-attention mechanism of Vision Transformer. Moreover, it had the benefit of being able to access information from any part of the image, regardless of the distance, overcoming the locality issue.
