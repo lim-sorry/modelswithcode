@@ -1,5 +1,5 @@
-from argparse import ArgumentParser, Namespace
 import os
+from argparse import ArgumentParser, Namespace
 import torch.nn as nn
 import torch
 import tqdm
@@ -16,17 +16,17 @@ def args_parse() -> Namespace:
     parser.add_argument("--IMG_CH", type=int, default=3)
 
     parser.add_argument("--TRAIN", type=bool, default=True)
-    parser.add_argument("--PATH_PT", type=str, default="supersampler_01.pt")
+    parser.add_argument("--PATH_PT", type=str, default="supersampler.pt")
     parser.add_argument("--PATH_IMG", type=str, default="/root/CelebA/Img/img_align_celeba")
     parser.add_argument("--PATH_LABEL", type=str, default="/root/CelebA/Anno/list_attr_celeba.txt")
     
-    parser.add_argument("--EPOCH", type=int, default=1)
+    parser.add_argument("--EPOCH", type=int, default=3)
     parser.add_argument("--BATCH_SIZE", type=int, default=32)
     parser.add_argument("--LR", type=float, default=0.0001)
 
-    parser.add_argument("--N_PATCH", type=int, default=16)
+    parser.add_argument("--N_PATCH", type=int, default=8)
 
-    return parser.parse_args()
+    return parser.parse_args('')
 
 
 class Trainer:
@@ -54,7 +54,7 @@ class Trainer:
         ep = self.ep
         for ep in range(ep, self.opt.EPOCH):
             total_loss = 0.0
-            tq = tqdm.tqdm(self.dataloader, ncols=150)
+            tq = tqdm.tqdm(self.dataloader, ncols=100)
             for it, (img, img_trg) in enumerate(tq):
                 img = img.to(self.device)
                 img_trg = img_trg.to(self.device)
@@ -88,7 +88,7 @@ class Trainer:
     def test(self):
         with torch.no_grad():
             total_loss = 0.0        
-            tq = tqdm.tqdm(self.dataloader, ncols=150)
+            tq = tqdm.tqdm(self.dataloader, ncols=100)
             for img, img_trg in tq:
                 img = img.to(self.device)
                 img_trg = img_trg.to(self.device)
