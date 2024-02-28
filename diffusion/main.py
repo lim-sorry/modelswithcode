@@ -14,8 +14,8 @@ from torchvision.transforms import ToTensor
 def parse_arg() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--PATH_IMG_FOLDER', type=str, default='CelebA/Img/img_align_celeba')
-    parser.add_argument('--PATH_LABEL', type=str, default='CelebA/Anno/list_attr_celeba.txt')
+    parser.add_argument('--PATH_IMG_FOLDER', type=str, default='/root/CelebA/Img/img_align_celeba')
+    parser.add_argument('--PATH_LABEL', type=str, default='/root/CelebA/Anno/list_attr_celeba.txt')
 
     parser.add_argument('--IMG_HEIGHT', type=int, default=64)
     parser.add_argument('--IMG_WIDTH', type=int, default=64)
@@ -59,21 +59,19 @@ class Diffusion:
             self.optimizer.param_groups[0]['lr'] = opt.LEARNING_RATE
             
 
-
     def train(self) -> None:
         opt = self.opt
         device = self.device
 
-        if os.path.exists('Diffusion_img/sample.png'):
-            sample_img = cv2.imread('Diffusion_img/sample.png')
+        if os.path.exists('images/sample.png'):
+            sample_img = cv2.imread('images/sample.png')
             sample_img = cv2.cvtColor(sample_img, cv2.COLOR_BGR2RGB)
             sample_img = self.transformer.transform(sample_img).to(device)
             sample_img = sample_img.view((1, opt.IMG_CH, opt.IMG_HEIGHT, opt.IMG_WIDTH)).to(device)
         else:
             sample_img = torch.clamp(torch.randn(3,64,64), -1.0, 1.0)
-            save_image((sample_img+1)/2, 'Diffusion_img/sample.png')
+            save_image((sample_img+1)/2, 'images/sample.png')
         
-
         total_loss = 0
         self.model.zero_grad()
         for epoch in range(self.epoch, opt.EPOCH+1):
@@ -99,7 +97,7 @@ class Diffusion:
                     sample_noise_img = self.ddim.denoise_image(sample_noise_img, sample_noise_pred, t)
                     if i % 18 == 0:
                         imgs.append((sample_noise_img[0]+1)/2)
-            save_image(make_grid(imgs, 4), f'Diffusion_img/train_img.png')
+            save_image(make_grid(imgs, 4), f'images/train_img.png')
             self.save_checkpoint(epoch, self.model, self.optimizer, opt.PATH_CHECKPOINT)
             total_loss = 0.0
 
@@ -116,7 +114,7 @@ class Diffusion:
                 t = torch.full((1,), i, device=self.device).float()
                 noise_pred = self.model(sample_img, t)  # Predicted noise
                 sample_img = self.ddim.denoise_image(sample_img, noise_pred, t)
-        save_image(make_grid((sample_img+1)*0.5, 8), f'Diffusion_img/test_img.png')
+        save_image(make_grid((sample_img+1)*0.5, 8), f'images/test_img.png')
 
 
     def save_checkpoint(self, epoch:int, model, optimizer, filename:str):
