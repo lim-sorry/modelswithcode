@@ -14,8 +14,8 @@ from torchvision.transforms import ToTensor
 def parse_arg() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--PATH_IMG_FOLDER', type=str, default='/root/CelebA/Img/img_align_celeba')
-    parser.add_argument('--PATH_LABEL', type=str, default='/root/CelebA/Anno/list_attr_celeba.txt')
+    parser.add_argument('--PATH_IMG_FOLDER', type=str, default='/root/data/celeba/Img/img_align_celeba')
+    parser.add_argument('--PATH_LABEL', type=str, default='/root/data/celeba/Anno/list_attr_celeba.txt')
 
     parser.add_argument('--IMG_HEIGHT', type=int, default=64)
     parser.add_argument('--IMG_WIDTH', type=int, default=64)
