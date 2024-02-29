@@ -77,7 +77,7 @@ class Diffusion:
                 loss.backward()
                 self.optimizer.step()
                 total_loss += loss.item()
-                tq.set_postfix_str(f'{epoch:2d}/{loss.item():>7.4f}')
+                tq.set_postfix_str(f'{epoch:2d}/{total_loss/(i+1):>7.4f}')
             
             self.model.eval()
             with torch.no_grad():
@@ -92,7 +92,6 @@ class Diffusion:
                 imgs = torch.stack(imgs, dim=0)
                 save_image(make_grid((imgs+1)/2, 4), f'images/train_img.png')
             self.save_checkpoint(epoch, self.model, self.optimizer, opt.PATH_CHECKPOINT)
-            tq.set_postfix_str(f'{epoch:2d}/{total_loss:>7.4f}')
 
 
     def test(self):

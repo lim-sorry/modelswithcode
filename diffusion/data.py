@@ -16,9 +16,10 @@ class Transformer:
         ])
 
         self.augment = RandomApply([
-            RandomRotation([-15.0, 15.0]),
+            RandomRotation([-10.0, 10.0]),
             RandomResizedCrop(img_size, [0.8, 1.0], [1.0, 1.0], antialias=True),
-        ], p=0.5)
+            RandomHorizontalFlip(0.5)
+        ], p=8.0)
     
     def transform(self, img, aug:bool=False):
         img = self.transformer(img)
