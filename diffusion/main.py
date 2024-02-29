@@ -35,7 +35,7 @@ def parse_arg() -> argparse.Namespace:
 
     parser.add_argument('--MODE', type=str, default='train')
 
-    return parser.parse_args('')
+    return parser.parse_args()
 
 
 class Diffusion:
@@ -65,6 +65,7 @@ class Diffusion:
 
         for epoch in range(self.epoch, opt.EPOCH+1):
             self.model.train()
+            total_loss = 0.0
             tq = tqdm.tqdm(self.dataloader, ncols=150)
             for i, (img, label) in enumerate(tq):
                 img = img.to(device)
@@ -75,6 +76,7 @@ class Diffusion:
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
+                total_loss += loss.item()
                 tq.set_postfix_str(f'{epoch:2d}/{loss.item():>7.4f}')
             
             self.model.eval()
@@ -90,6 +92,7 @@ class Diffusion:
                 imgs = torch.stack(imgs, dim=0)
                 save_image(make_grid((imgs+1)/2, 4), f'images/train_img.png')
             self.save_checkpoint(epoch, self.model, self.optimizer, opt.PATH_CHECKPOINT)
+            tq.set_postfix_str(f'{epoch:2d}/{total_loss:>7.4f}')
 
 
     def test(self):
@@ -116,8 +119,8 @@ class Diffusion:
 
 def main():
     opt = parse_arg()
-    diffusion = Diffusion(opt)
     
+    diffusion = Diffusion(opt)
     if opt.MODE.lower() == 'train':
         diffusion.train()
     if opt.MODE.lower() == 'test':
